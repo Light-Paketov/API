@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>All Models</title>
+</head>
+<body>
+    <h1>All Models</h1>
+    <ul>
+        {% for model_name in model_names %}
+            <li><a href="{% url 'model:'|add:model_name %}">{{ model_name|capfirst }}</a></li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

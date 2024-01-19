@@ -1,0 +1,6 @@
+python manage.py loaddata all_fixtures.json
+python manage.py loaddata Gender.json
+python manage.py loaddata Users.json
+python manage.py dumpdata model.Gender --indent 2 > fixture/Gender.json
+python manage.py dumpdata model.User --indent 2 > fixture/Users.json
+

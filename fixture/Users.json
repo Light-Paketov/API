@@ -1,0 +1,26 @@
+[
+{
+  "model": "model.user",
+  "pk": 1,
+  "fields": {
+    "nickname": "pktv",
+    "email": "temic005@gmail.com",
+    "password": "timofey2005",
+    "full_name": "UNISEX",
+    "gender": 1,
+    "age": 18
+  }
+},
+{
+  "model": "model.user",
+  "pk": 2,
+  "fields": {
+    "nickname": "light2d",
+    "email": "light2d@gmail.com",
+    "password": "lightDeveloper43",
+    "full_name": "UNISEX",
+    "gender": 1,
+    "age": 18
+  }
+}
+]
