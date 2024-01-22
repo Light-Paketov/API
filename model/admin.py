@@ -3,7 +3,7 @@ from .models import Gender, User, Diet, Category, Vitamins, Product
 
 class UserModelAdmin(admin.ModelAdmin):
     list_display = [
-        'nickname'
+        'username'
     ]
 class DietModelAdmin(admin.ModelAdmin):
     list_display = [

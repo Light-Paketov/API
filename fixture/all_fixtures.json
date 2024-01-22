@@ -1,24 +1,5 @@
 [
   {
-    "model": "auth.user",
-    "pk": 1,
-    "fields": {
-      "password": "pbkdf2_sha256$260000$031ITVNSmeNVyg3Uox9Mh4$uideuvaU3RM79JXCPWMXfBomP/iQNSzEr6C9n9LFlUw=",
-      "last_login": "2024-01-19T10:15:18.617Z",
-      "is_superuser": true,
-      "username": "pktv",
-      "first_name": "",
-      "last_name": "",
-      "email": "",
-      "is_staff": true,
-      "is_active": true,
-      "date_joined": "2024-01-19T09:41:45.214Z",
-      "groups": [],
-      "user_permissions": []
-    }
-  },
-
-  {
     "model": "model.gender",
     "pk": 1,
     "fields": {
@@ -34,28 +15,23 @@
   },
 
   {
-      "model": "model.user",
-      "pk": 1,
-      "fields": {
-        "nickname": "pktv",
-        "email": "temic005@gmail.com",
-        "password": "timofey2005",
-        "full_name": "UNISEX",
-        "gender": 1,
-        "age": 18
-      }
-    },
-    {
-      "model": "model.user",
-      "pk": 2,
-      "fields": {
-        "nickname": "light2d",
-        "email": "light2d@gmail.com",
-        "password": "lightDeveloper43",
-        "full_name": "UNISEX",
-        "gender": 1,
-        "age": 18
-      }
+    "model": "model.user",
+    "pk": 1,
+    "fields": {
+      "password": "pbkdf2_sha256$260000$031ITVNSmeNVyg3Uox9Mh4$uideuvaU3RM79JXCPWMXfBomP/iQNSzEr6C9n9LFlUw=",
+      "last_login": "2024-01-19T10:15:18.617Z",
+      "is_superuser": true,
+      "username": "pktv",
+      "full_name": "Ивановский Тимофей Владиславович",
+      "email": "polinascaraboobs@gmail.com",
+      "gender": 1,
+      "age": 18,
+      "is_staff": true,
+      "is_active": true,
+      "date_joined": "2024-01-19T09:41:45.214Z",
+      "groups": [],
+      "user_permissions": []
+    }
   }
 ]
 

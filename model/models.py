@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator
 
 class Gender(models.Model):
@@ -7,8 +8,8 @@ class Gender(models.Model):
     def __str__(self):
         return self.title
 
-class User(models.Model):
-    nickname = models.CharField(max_length=20, unique=True, null=False)
+class User(AbstractUser):
+    username = models.CharField(max_length=20, unique=True, null=False)
     email = models.CharField(max_length=50, unique=True, null=False)
     password = models.CharField(max_length=30, null=False)
     full_name = models.CharField(max_length=70, null=False)
@@ -16,7 +17,7 @@ class User(models.Model):
     age = models.PositiveIntegerField(validators=[MaxValueValidator(100)], null=False) #Положительные числа с максимальным значением 100
     
     def __str__(self):
-        return self.nickname
+        return self.username
 
 class Diet(models.Model):
     title = models.CharField(max_length=30, unique=True, null=False)

@@ -1,5 +1,9 @@
 from rest_framework import serializers
+from rest_framework.authtoken.models import Token
+
 from .models import Gender, User, Diet, Product
+
+from django.contrib.auth.hashers import make_password
 
 class GenderSerializer(serializers.ModelSerializer):
     class Meta:
@@ -10,12 +14,22 @@ class UserSerializer(serializers.ModelSerializer):
     #gender = GenderSerializer()
     class Meta:
         model = User
-        fields = ['nickname', 'email', 'password', 'full_name', 'gender', 'age']
+        fields = ['username', 'email', 'password', 'full_name', 'gender', 'age']
         
         # Дополнительные параметры
         extra_kwargs = {
             'password': {'write_only': True},  #Пароль только для чтения
         }
+    
+    #Хеширование пароля
+    def create(self, validated_data):
+        validated_data['password'] = make_password(validated_data.get('password'))
+        user = super(UserSerializer, self).create(validated_data)
+
+        # Создаем токен
+        Token.objects.create(user=user)
+
+        return user
         
 class DietSerializer(serializers.ModelSerializer):
     #author = UserSerializer()

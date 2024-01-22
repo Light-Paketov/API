@@ -1,12 +1,17 @@
 from django.apps import apps
+from django.contrib.auth import authenticate
 from django.shortcuts import render
 
 from .models import User, Diet, Product
 from .serializers import UserSerializer, DietSerializer, ProductSerializer
 
 from rest_framework.response import Response
+from rest_framework.authtoken.models import Token
 from rest_framework import status
+from rest_framework.views import APIView
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.exceptions import AuthenticationFailed
 
 #Функция получаения models определённого приложения
 def get_app_models(app_label):
@@ -16,9 +21,16 @@ def get_app_models(app_label):
 #Базовая страница со списком models приложения model
 def all_models(request):
     app_label = 'model'
-    ignore_app_label = ['Gender', 'Category', 'Vitamins'] #Список model, которые игнорируются добавлением
+    
+    #Игнорируемые модели
+    ignore_app_label = ['Gender', 'Category', 'Vitamins', 'App'] #Список model, которые игнорируются добавлением
     model_names = [model.__name__.lower()+'s' for model in get_app_models(app_label) if model.__name__ not in ignore_app_label]
     
+    #Дополнительные urls
+    additional_label = ['Auth-signup', 'Auth-login']
+    for label in additional_label:
+        model_names.append(label.lower())
+        
     return render(request, 'all_models.html', {'model_names': model_names})
 
 class UsersView(ListCreateAPIView):
@@ -35,6 +47,24 @@ class UsersView(ListCreateAPIView):
             serializer.save()
             return Response({"User created": serializer.data}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class LoginView(APIView):
+    def post(self, request):
+        username = request.data.get('username')
+        password = request.data.get('password')
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            # Пользователь аутентифицирован
+
+            # Создаем или получаем токен для пользователя
+            token, created = Token.objects.get_or_create(user=user)
+
+            return Response({'token': token.key, 'user_id': user.id}, status=status.HTTP_200_OK)
+        else:
+            # Пользователь не аутентифицирован
+            return Response({'error': 'Authentication failed'}, status=status.HTTP_401_UNAUTHORIZED)
 
 class UserView(RetrieveUpdateDestroyAPIView):
     serializer_class = UserSerializer
@@ -224,5 +254,5 @@ class ProductView(RetrieveUpdateDestroyAPIView):
             return Response({"Products deleted": f"from {firstID} to {lastID}"})
         else:
             return Response({"error": "Provide valid parameters for firstID or firstID and lastID"})      
-        
+
         
