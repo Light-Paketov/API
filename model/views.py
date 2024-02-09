@@ -2,7 +2,7 @@ from django.apps import apps
 from django.contrib.auth import authenticate
 from django.shortcuts import render
 
-from .models import User, Diet, Product
+from .models import User, Diet, Category, Product, Ingestion
 from .serializers import UserSerializer, DietSerializer, ProductSerializer
 
 from rest_framework.response import Response
@@ -10,8 +10,6 @@ from rest_framework.authtoken.models import Token
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.exceptions import AuthenticationFailed
 
 #Функция получаения models определённого приложения
 def get_app_models(app_label):
@@ -23,7 +21,7 @@ def all_models(request):
     app_label = 'model'
     
     #Игнорируемые модели
-    ignore_app_label = ['Gender', 'Category', 'Vitamins', 'App'] #Список model, которые игнорируются добавлением
+    ignore_app_label = ['Gender', 'Category', 'Vitamins', 'App', 'Ingestion'] #Список model, которые игнорируются добавлением
     model_names = [model.__name__.lower()+'s' for model in get_app_models(app_label) if model.__name__ not in ignore_app_label]
     
     #Дополнительные urls
@@ -253,6 +251,82 @@ class ProductView(RetrieveUpdateDestroyAPIView):
                 product.delete()
             return Response({"Products deleted": f"from {firstID} to {lastID}"})
         else:
-            return Response({"error": "Provide valid parameters for firstID or firstID and lastID"})      
+            return Response({"error": "Provide valid parameters for firstID or firstID and lastID"})
+    
+class ProductDietView(APIView):
+    serializer_class = ProductSerializer
+    def get(self, request, diet):
+        try:
+            diet = Diet.objects.get(title=diet)
+            products = Product.objects.filter(diet=diet)
+            serializer = self.serializer_class(products, many=True)
+            return Response({"Products diet": diet.title, "products": serializer.data})
+        except Diet.DoesNotExist:
+            return Response({"error": "Diet does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+class ProductCategoryView(APIView):
+    serializer_class = ProductSerializer
+    
+    def get(self, request, diet, category):
+        try:
+            category = Category.objects.get(title=category)
+            if diet != 'None':
+                diet = Diet.objects.get(title=diet)
+                products = Product.objects.filter(diet=diet, category=category)
+                serializer = self.serializer_class(products, many=True)
+                return Response({"Products diet": diet.title, "category": category.title, "products": serializer.data})
+            else:
+                products = Product.objects.filter(category=category)
+                serializer = self.serializer_class(products, many=True)
+                return Response({"Products diet": "None", "category": category.title, "products": serializer.data})
+        except Diet.DoesNotExist:
+             return Response({"error": "Diet does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        except Category.DoesNotExist:
+            return Response({"error": "Category does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+class ProductIngestionView(APIView):
+    serializer_class = ProductSerializer
+    
+    def get(self, request, diet, ingestion):
+        try:
+            diet = Diet.objects.get(title=diet)
+            ingestion = Ingestion.objects.get(title=ingestion)
+            products_in_ingestion = ingestion.product.all()
+            products = products_in_ingestion.filter(diet=diet)
+            
+            serializer = self.serializer_class(products, many=True)
+            return Response({"Products diet": diet.title, "ingestion": ingestion.title, "products": serializer.data})
+        except Diet.DoesNotExist:
+             return Response({"error": "Diet does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        except Ingestion.DoesNotExist:
+            return Response({"error": "Ingestion does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+class ProductIngestionCategoryView(APIView):
+    serializer_class = ProductSerializer
+    
+    def get(self, request, diet, ingestion, category):
+        try:
+            diet = Diet.objects.get(title=diet)
+            ingestion = Ingestion.objects.get(title=ingestion)
+            category = Category.objects.get(title=category)
+            products_in_ingestion = ingestion.product.all()
+            products = products_in_ingestion.filter(diet=diet, category=category)
+            
+            serializer = self.serializer_class(products, many=True)
+            return Response({"Products diet": diet.title, "ingestion": ingestion.title, "category": category.title, "products": serializer.data})
+        except Diet.DoesNotExist:
+             return Response({"error": "Diet does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        except Ingestion.DoesNotExist:
+            return Response({"error": "Ingestion does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        except Category.DoesNotExist:
+            return Response({"error": "Category does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)    
 
         

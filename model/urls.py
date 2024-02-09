@@ -2,7 +2,7 @@ from django.urls import path
 
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from .views import UsersView, UserView, LoginView, DietsView, DietView, ProductsView, ProductView
+from .views import UsersView, UserView, LoginView, DietsView, DietView, ProductsView, ProductView, ProductDietView, ProductCategoryView, ProductIngestionView, ProductIngestionCategoryView
 app_name = "model"
 
 #model.User
@@ -31,4 +31,12 @@ urlpatterns += [
     path('products/', ProductsView.as_view(), name='products'),
     path('product/<int:firstID>', ProductView.as_view()),
     path('product/<int:firstID>-<int:lastID>', ProductView.as_view())
+]
+
+#model.Product.{Что-то}
+urlpatterns += [
+    path('products/diet:<str:diet>', ProductDietView.as_view()),
+    path('products/diet:<str:diet>/category:<str:category>', ProductCategoryView.as_view()), #Diet может быть Null, т.e "products/diet:'Null'/category:<str:category>"
+    path('products/diet:<str:diet>/ingestion:<str:ingestion>', ProductIngestionView.as_view()),
+    path('products/diet:<str:diet>/ingestion:<str:ingestion>/category:<str:category>', ProductIngestionCategoryView.as_view()),   
 ]

@@ -59,4 +59,9 @@ class Product(models.Model):
     def __str__(self):
         return self.title
     
+class Ingestion(models.Model):
+    title = models.CharField(max_length=10, unique=True) 
+    product = models.ManyToManyField(Product)
     
+    def __str__(self):
+        return self.title

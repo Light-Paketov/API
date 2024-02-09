@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
 
-from .models import Gender, User, Diet, Product
+from .models import Gender, User, Diet, Product, Ingestion
 
 from django.contrib.auth.hashers import make_password
 
@@ -41,3 +41,9 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ['diet', 'icon', 'category', 'title', 'description', 'calories', 'proteins', 'fats', 'carbohydrates', 'vitamins', 'price', 'weight']
+        
+class IngestionSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Product
+        fields = ['title', 'product']
