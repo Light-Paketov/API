@@ -1,35 +1,15 @@
-from django.apps import apps
 from django.contrib.auth import authenticate
-from django.shortcuts import render
 
-from .models import User, Diet, Category, Product, Ingestion
-from .serializers import UserSerializer, DietSerializer, ProductSerializer
+from .models import User, Diet, Category, Product, Ingestion, Vitamins
+from .serializers import UserSerializer, DietSerializer, ProductSerializer, CategorySerializer, VitaminsSerializer, IngestionSerializer
 
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 from rest_framework import status
 from rest_framework.views import APIView
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, UpdateAPIView
 
-#Функция получаения models определённого приложения
-def get_app_models(app_label):
-    app_models = apps.get_app_config(app_label).get_models()
-    return app_models
-
-#Базовая страница со списком models приложения model
-def all_models(request):
-    app_label = 'model'
-    
-    #Игнорируемые модели
-    ignore_app_label = ['Gender', 'Category', 'Vitamins', 'App', 'Ingestion'] #Список model, которые игнорируются добавлением
-    model_names = [model.__name__.lower()+'s' for model in get_app_models(app_label) if model.__name__ not in ignore_app_label]
-    
-    #Дополнительные urls
-    additional_label = ['Auth-signup', 'Auth-login']
-    for label in additional_label:
-        model_names.append(label.lower())
-        
-    return render(request, 'all_models.html', {'model_names': model_names})
+from .functions import get_user_by_token
 
 class UsersView(ListCreateAPIView):
     serializer_class = UserSerializer
@@ -45,7 +25,7 @@ class UsersView(ListCreateAPIView):
             serializer.save()
             return Response({"User created": serializer.data}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
 class LoginView(APIView):
     def post(self, request):
         username = request.data.get('username')
@@ -54,279 +34,157 @@ class LoginView(APIView):
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
-            # Пользователь аутентифицирован
-
-            # Создаем или получаем токен для пользователя
             token, created = Token.objects.get_or_create(user=user)
 
             return Response({'token': token.key, 'user_id': user.id}, status=status.HTTP_200_OK)
         else:
-            # Пользователь не аутентифицирован
             return Response({'error': 'Authentication failed'}, status=status.HTTP_401_UNAUTHORIZED)
-
-class UserView(RetrieveUpdateDestroyAPIView):
-    serializer_class = UserSerializer
-
-    def get(self, request, firstID=None, lastID=None):
-        if firstID is not None and lastID is None:
-            user = User.objects.get(id=firstID)
-            serializer = self.get_serializer(user)
-            return Response({f"User[{firstID}]": serializer.data})
-        elif firstID is not None and lastID is not None:
-            users = User.objects.filter(id__range=(firstID, lastID))
-            serializer = self.get_serializer(users, many=True)
-            return Response({f"Users[{firstID}-{lastID}]": serializer.data})
-        else:
-            return Response({"error": "Provide valid parameters for firstID and lastID"})
-        
-    def put(self, request, firstID=None, lastID=None):
-        if firstID is not None and lastID is None:
-            user = User.objects.get(id=firstID)
-            serializer = self.get_serializer(user, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response({f"User[{firstID}] updated": serializer.data})
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        if firstID is not None and lastID is not None:
-            users = User.objects.filter(id__range=(firstID, lastID))
-            updated_users_data = request.data
-
-            for user, new_data in zip(users, updated_users_data):
-                serializer = self.get_serializer(user, data=new_data, partial=True)
-                if serializer.is_valid():
-                    serializer.save()
-
-            return Response({"Users updated": f"from {firstID} to {lastID}"})
-        else:
-            return Response({"error": "Provide valid parameters for firstID and lastID"})
-        
-    def delete(self, request, firstID=None, lastID=None):
-        if firstID is not None and lastID is None:
-            try:
-                user = User.objects.get(id=firstID)
-                user.delete()
-                return Response({f"User[{firstID}] deleted": "success"})
-            except User.DoesNotExist:
-                return Response({f"User[{firstID}]": "not found"}, status=status.HTTP_404_NOT_FOUND)
-        elif firstID is not None and lastID is not None:
-            users = User.objects.filter(id__range=(firstID, lastID))
-            for user in users:
-                user.delete()
-            return Response({"Users deleted": f"from {firstID} to {lastID}"})
-        else:
-            return Response({"error": "Provide valid parameters for firstID or firstID and lastID"})
 
 class DietsView(ListCreateAPIView):
     serializer_class =  DietSerializer
-    
-    def get(self, request):
-        diets = Diet.objects.all()
-        serializer = self.get_serializer(diets, many=True)
-        return Response({"Diets": serializer.data})
-    
-    def post(self, request):
+ 
+    def get(self, request, *args, **kwargs):
+        token = kwargs.get('token', None) 
+        user = get_user_by_token(token)
+        if not user:
+            return Response({f"Ошибка авторизации: Токен:{token} не найден"})
+        title = kwargs.get('title', None)
+        if not title:
+                diets = Diet.objects.filter(author=user)
+                if diets.count() == 0:
+                    return Response({f"У {user} нет диет"})
+                serializer = self.serializer_class(diets, many=True)
+                return Response({f"Диеты пользователя {user}": serializer.data})
+        else: 
+            diet = Diet.objects.get(title=title)
+            serializer = self.serializer_class(diet)
+            return Response({f"Диета {diet.title} пользователя {user}": serializer.data})
+        
+    def post(self, request, *args, **kwargs):
+        token = kwargs.get('token', None) 
+        user = get_user_by_token(token)
+        if not user:
+            return Response({f"Ошибка авторизации: Токен:{token} не найден"})
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"Diet created": serializer.data}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-class DietView(RetrieveUpdateDestroyAPIView):
-    serializer_class = DietSerializer
-
-    def get(self, request, firstID=None, lastID=None):
-        if firstID is not None and lastID is None:
-            diet = Diet.objects.get(id=firstID)
-            serializer = self.get_serializer(diet)
-            return Response({f"User[{firstID}]": serializer.data})
-        elif firstID is not None and lastID is not None:
-            diets = Diet.objects.filter(id__range=(firstID, lastID))
-            serializer = self.get_serializer(diets, many=True)
-            return Response({f"Diets[{firstID}-{lastID}]": serializer.data})
-        else:
-            return Response({"error": "Provide valid parameters for firstID and lastID"})
-        
-    def put(self, request, firstID=None, lastID=None):
-        if firstID is not None and lastID is None:
-            diet = Diet.objects.get(id=firstID)
-            serializer = self.get_serializer(diet, data=request.data, partial=True)
-            if serializer.is_valid():
-                serializer.save()
-                return Response({f"Diet[{firstID}] updated": serializer.data})
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        if firstID is not None and lastID is not None:
-            diets = Diet.objects.filter(id__range=(firstID, lastID))
-            updated_users_data = request.data
-
-            for user, new_data in zip(diets, updated_users_data):
-                serializer = self.get_serializer(user, data=new_data, partial=True)
-                if serializer.is_valid():
-                    serializer.save()
-
-            return Response({"Diets updated": f"from {firstID} to {lastID}"})
-        else:
-            return Response({"error": "Provide valid parameters for firstID and lastID"})
-        
-    def delete(self, request, firstID=None, lastID=None):
-        if firstID is not None and lastID is None:
             try:
-                diet = Diet.objects.get(id=firstID)
-                diet.delete()
-                return Response({f"User[{firstID}] deleted": "success"})
-            except User.DoesNotExist:
-                return Response({f"User[{firstID}]": "not found"}, status=status.HTTP_404_NOT_FOUND)
-        elif firstID is not None and lastID is not None:
-            diets = Diet.objects.filter(id__range=(firstID, lastID))
-            for diet in diets:
-                diet.delete()
-            return Response({"Diets deleted": f"from {firstID} to {lastID}"})
-        else:
-            return Response({"error": "Provide valid parameters for firstID or firstID and lastID"})
-            
-class ProductsView(ListCreateAPIView):
-    serializer_class =  ProductSerializer
+                author_username = User.objects.get(pk=serializer.data.get('author')).username
+            except (User.DoesNotExist, TypeError):
+                author_username = 'Unknown'
+            return Response({f"Диета {serializer.data.get('title','Unknown')}, Автор:{author_username}": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+class CategoriesView(APIView):
     def get(self, request):
-        products = Product.objects.all()
-        serializer = self.get_serializer(products, many=True)
-        return Response({"Products": serializer.data})
-    
-    def post(self, request):
+        categories = Category.objects.all()
+        serializer = CategorySerializer(categories, many=True)
+        return Response({"Categories": serializer.data})
+
+class VitaminesView(APIView):
+    def get(self, request):
+        vitamines = Vitamins.objects.all()
+        serializer = VitaminsSerializer(vitamines, many=True)
+        return Response({"Vitamines": serializer.data})
+
+class ProductsView(RetrieveUpdateDestroyAPIView):
+    serializer_class =  ProductSerializer
+
+    def get(self, request, *args, **kwargs):
+        token = kwargs.get('token', None)
+        user = get_user_by_token(token)
+        if not user:
+            return Response({"error": f"Ошибка авторизации: Токен:{token} не найден"})
+
+        product_title = kwargs.get('productTitle', None)
+        if not product_title:
+            diet_title = kwargs.get('dietTitle', None)
+            ingestion_title = kwargs.get('ingestionTitle', None)
+            
+            products = Product.objects.filter(author=user)
+            if diet_title:
+                products = products.filter(diet__title=diet_title)
+            if ingestion_title:
+                products = products.filter(ingestion__title=ingestion_title)
+
+            if products.count() == 0:
+                return Response({"error": f"Продукты не найдены"})
+            serializer = self.serializer_class(products, many=True)
+            return Response({"Продукты": serializer.data})
+        else:
+            product = Product.objects.filter(author=user, title=product_title).first()
+            if not product:
+                return Response({"error": "Продукт не найден или у пользователя нет доступа"})
+            
+            serializer = self.serializer_class(product)
+            return Response({"Продукт": serializer.data})
+        
+    def post(self, request, *args, **kwargs):
+        token = kwargs.get('token', None)  
+        user = get_user_by_token(token)
+        if not user:
+            return Response({f"Ошибка авторизации: Токен:{token} не найден"})
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"Product created": serializer.data}, status=status.HTTP_201_CREATED)
+            try:
+                author_username = User.objects.get(pk=serializer.data.get('author')).username
+            except (User.DoesNotExist, TypeError):
+                author_username = 'Unknown'
+            return Response({f"Продукт {serializer.data.get('title','Unknown')}, Автор:{author_username}": serializer.data}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-class ProductView(RetrieveUpdateDestroyAPIView):
-    serializer_class = ProductSerializer
 
-    def get(self, request, firstID=None, lastID=None):
-        if firstID is not None and lastID is None:
-            product = Product.objects.get(id=firstID)
-            serializer = self.get_serializer(product)
-            return Response({f"User[{firstID}]": serializer.data})
-        elif firstID is not None and lastID is not None:
-            products = Product.objects.filter(id__range=(firstID, lastID))
-            serializer = self.get_serializer(products, many=True)
-            return Response({f"Products[{firstID}-{lastID}]": serializer.data})
-        else:
-            return Response({"error": "Provide valid parameters for firstID and lastID"})
-        
-    def put(self, request, firstID=None, lastID=None):
-        if firstID is not None and lastID is None:
-            product = Product.objects.get(id=firstID)
+    def put(self, request, *args, **kwargs):
+        token = kwargs.get('token', None)  
+        user = get_user_by_token(token)
+        if not user:
+            return Response({f"Ошибка авторизации: Токен:{token} не найден"})
+        title = kwargs.get('title', None)
+        if not title:
+            return Response({f"Ошибка: Метод PUT не поддерживает множество значений"})
+        try:
+            product = Product.objects.get(author=user, title=title)
             serializer = self.get_serializer(product, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
-                return Response({f"Product[{firstID}] updated": serializer.data})
+                return Response({f"Продукт обновлён": serializer.data})
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        if firstID is not None and lastID is not None:
-            products = Product.objects.filter(id__range=(firstID, lastID))
-            updated_users_data = request.data
+        except Product.DoesNotExist:
+            return Response({"error": f"Продукт пользователя не найден или у нет разрешения на обновление"}, status=status.HTTP_404_NOT_FOUND)
 
-            for user, new_data in zip(products, updated_users_data):
-                serializer = self.get_serializer(user, data=new_data, partial=True)
-                if serializer.is_valid():
-                    serializer.save()
+    def delete(self, request, *args, **kwargs):
+        token = kwargs.get('token', None)  
+        user = get_user_by_token(token)
+        if not user:
+            return Response({f"Ошибка авторизации: Токен:{token} не найден"})
+        title = kwargs.get('title', None)
+        if not title:
+            return Response({f"Ошибка: Метод PUT не поддерживает множество значений"})
+        try:
+            product = Product.objects.get(author=user, title=title)
+            product.delete()
+            return Response({f"Продукт удалён": "success"})
+        except User.DoesNotExist:
+            return Response({f"Продукт": "not fount"}, status=status.HTTP_404_NOT_FOUND)
+               
+class IngestionView(UpdateAPIView):
+    serializer_class = IngestionSerializer
+    queryset = Ingestion.objects.all()
+    lookup_field = 'title'
 
-            return Response({"Products updated": f"from {firstID} to {lastID}"})
-        else:
-            return Response({"error": "Provide valid parameters for firstID and lastID"})
-        
-    def delete(self, request, firstID=None, lastID=None):
-        if firstID is not None and lastID is None:
-            try:
-                product = Product.objects.get(id=firstID)
-                product.delete()
-                return Response({f"User[{firstID}] deleted": "success"})
-            except User.DoesNotExist:
-                return Response({f"User[{firstID}]": "not found"}, status=status.HTTP_404_NOT_FOUND)
-        elif firstID is not None and lastID is not None:
-            products = Product.objects.filter(id__range=(firstID, lastID))
-            for product in products:
-                product.delete()
-            return Response({"Products deleted": f"from {firstID} to {lastID}"})
-        else:
-            return Response({"error": "Provide valid parameters for firstID or firstID and lastID"})
-    
-class ProductDietView(APIView):
-    serializer_class = ProductSerializer
-    def get(self, request, diet):
+    def put(self, request, *args, **kwargs):
+        title = kwargs.get("title", None)
+        if not title:
+            return Response({"error": "Method PUT not allowed. Title parameter is missing."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            diet = Diet.objects.get(title=diet)
-            products = Product.objects.filter(diet=diet)
-            serializer = self.serializer_class(products, many=True)
-            return Response({"Products diet": diet.title, "products": serializer.data})
-        except Diet.DoesNotExist:
-            return Response({"error": "Diet does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
-class ProductCategoryView(APIView):
-    serializer_class = ProductSerializer
-    
-    def get(self, request, diet, category):
-        try:
-            category = Category.objects.get(title=category)
-            if diet != 'None':
-                diet = Diet.objects.get(title=diet)
-                products = Product.objects.filter(diet=diet, category=category)
-                serializer = self.serializer_class(products, many=True)
-                return Response({"Products diet": diet.title, "category": category.title, "products": serializer.data})
-            else:
-                products = Product.objects.filter(category=category)
-                serializer = self.serializer_class(products, many=True)
-                return Response({"Products diet": "None", "category": category.title, "products": serializer.data})
-        except Diet.DoesNotExist:
-             return Response({"error": "Diet does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        except Category.DoesNotExist:
-            return Response({"error": "Category does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
-class ProductIngestionView(APIView):
-    serializer_class = ProductSerializer
-    
-    def get(self, request, diet, ingestion):
-        try:
-            diet = Diet.objects.get(title=diet)
-            ingestion = Ingestion.objects.get(title=ingestion)
-            products_in_ingestion = ingestion.product.all()
-            products = products_in_ingestion.filter(diet=diet)
-            
-            serializer = self.serializer_class(products, many=True)
-            return Response({"Products diet": diet.title, "ingestion": ingestion.title, "products": serializer.data})
-        except Diet.DoesNotExist:
-             return Response({"error": "Diet does not exist"}, status=status.HTTP_404_NOT_FOUND)
+            ingestion = Ingestion.objects.get(title=title)
         except Ingestion.DoesNotExist:
             return Response({"error": "Ingestion does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        
-class ProductIngestionCategoryView(APIView):
-    serializer_class = ProductSerializer
-    
-    def get(self, request, diet, ingestion, category):
-        try:
-            diet = Diet.objects.get(title=diet)
-            ingestion = Ingestion.objects.get(title=ingestion)
-            category = Category.objects.get(title=category)
-            products_in_ingestion = ingestion.product.all()
-            products = products_in_ingestion.filter(diet=diet, category=category)
-            
-            serializer = self.serializer_class(products, many=True)
-            return Response({"Products diet": diet.title, "ingestion": ingestion.title, "category": category.title, "products": serializer.data})
-        except Diet.DoesNotExist:
-             return Response({"error": "Diet does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        except Ingestion.DoesNotExist:
-            return Response({"error": "Ingestion does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        except Category.DoesNotExist:
-            return Response({"error": "Category does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)    
 
-        
+        serializer = self.serializer_class(ingestion, data=request.data)
+        if serializer.is_valid():
+            serializer.validated_data['remove_product'] = request.data.get('remove_product', [])
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

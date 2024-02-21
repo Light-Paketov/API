@@ -25,7 +25,6 @@
       "full_name": "Ивановский Тимофей Владиславович",
       "email": "polinascaraboobs@gmail.com",
       "gender": 1,
-      "age": 18,
       "is_staff": true,
       "is_active": true,
       "date_joined": "2024-01-19T09:41:45.214Z",
@@ -36,4 +35,4 @@
 ]
 
 
-    
+
